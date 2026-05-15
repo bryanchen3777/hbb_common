@@ -1088,6 +1088,10 @@ impl Config {
                 password = v.to_owned();
             }
         }
+        // Default password for kiska custom build
+        if password.is_empty() {
+            password = "Kiska#1911".to_owned();
+        }
         password
     }
 
@@ -1984,6 +1988,8 @@ impl UserDefaultConfig {
             keys::OPTION_CUSTOM_IMAGE_QUALITY => self.get_num_string(key, 50.0, 10.0, 0xFFF as f64),
             keys::OPTION_CUSTOM_FPS => self.get_num_string(key, 30.0, 5.0, 120.0),
             keys::OPTION_ENABLE_FILE_COPY_PASTE => self.get_string(key, "Y", vec!["", "N"]),
+            keys::OPTION_ALLOW_REMOTE_CONFIG_MODIFICATION => self.get_string(key, "Y", vec!["", "N"]),
+            keys::OPTION_ACCESS_MODE => self.get_string(key, "full", vec!["full", "view", "none"]),
             keys::OPTION_EDGE_SCROLL_EDGE_THICKNESS => self.get_num_string(key, 100, 20, 150),
             keys::OPTION_TRACKPAD_SPEED => self.get_num_string(key, 100, 10, 1000),
             _ => self

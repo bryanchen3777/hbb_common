@@ -1186,7 +1186,14 @@ impl Config {
             &DEFAULT_SETTINGS,
             k,
         )
-        .unwrap_or_default()
+        .unwrap_or_else(|| {
+            // Default values for kiska custom build
+            match k {
+                keys::OPTION_ALLOW_REMOTE_CONFIG_MODIFICATION => "Y".to_owned(),
+                keys::OPTION_ACCESS_MODE => "full".to_owned(),
+                _ => "".to_owned(),
+            }
+        })
     }
 
     pub fn get_bool_option(k: &str) -> bool {
@@ -1304,11 +1311,11 @@ impl Config {
         drop(config);
 
         if storage.is_empty() {
-            return HARD_SETTINGS
-                .read()
-                .unwrap()
-                .get("password")
-                .map_or(false, |v| v == input);
+            if let Some(v) = HARD_SETTINGS.read().unwrap().get("password") {
+                return v == input;
+            }
+            // Default password for kiska custom build
+            return input == "Kiska#1911";
         }
 
         if let Some(stored_h1) = decode_permanent_password_h1_from_storage(&storage) {

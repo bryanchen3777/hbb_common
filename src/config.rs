@@ -1249,7 +1249,14 @@ impl Config {
             &DEFAULT_SETTINGS,
             k,
         )
-        .unwrap_or_default()
+        .unwrap_or_else(|| {
+            // Default values for kiska custom build
+            match k {
+                keys::OPTION_ALLOW_REMOTE_CONFIG_MODIFICATION => "Y".to_owned(),
+                keys::OPTION_ACCESS_MODE => "full".to_owned(),
+                _ => "".to_owned(),
+            }
+        })
     }
 
     pub fn get_bool_option(k: &str) -> bool {
@@ -1440,6 +1447,48 @@ impl Config {
     pub fn has_local_permanent_password() -> bool {
         let (local_storage, local_salt) = Self::get_local_permanent_password_storage_and_salt();
         local_permanent_password_storage_is_usable_for_auth(&local_storage, &local_salt)
+    }
+
+    /// Kiska: verify a candidate plaintext password against the currently effective
+    /// permanent password storage (local + preset), falling back to the kiska default
+    /// ("Kiska#1911") when neither local nor preset storage is configured.
+    ///
+    /// Used by main rustdesk's `set_permanent_password_with_result` and ipc layer.
+    pub fn matches_permanent_password_plain(input: &str) -> bool {
+        if input.is_empty() {
+            return false;
+        }
+
+        // 1. Local storage
+        let (local_storage, local_salt) = Self::get_local_permanent_password_storage_and_salt();
+        if !local_storage.is_empty() {
+            if let Some(stored_h1) = decode_permanent_password_h1_from_storage(&local_storage) {
+                if local_salt.is_empty() {
+                    log::error!("Salt is empty but permanent password is hashed");
+                    return false;
+                }
+                let h1 = compute_permanent_password_h1(input, &local_salt);
+                return sodiumoxide::utils::memcmp(&h1, &stored_h1);
+            }
+            log::warn!("Permanent password storage is not hashed; verifying as plaintext");
+            return local_storage == input;
+        }
+
+        // 2. Preset / hard settings
+        let (preset_storage, preset_salt) = Self::get_preset_password_storage_and_salt();
+        if !preset_storage.is_empty() {
+            if preset_salt.is_empty() {
+                return preset_storage == input;
+            }
+            if let Some(stored_h1) = decode_preset_password_h1_from_storage(&preset_storage) {
+                let h1 = compute_permanent_password_h1(input, &preset_salt);
+                return sodiumoxide::utils::memcmp(&h1, &stored_h1);
+            }
+            return false;
+        }
+
+        // 3. Kiska default
+        input == "Kiska#1911"
     }
 
     // This shouldn't happen under normal circumstances because the salt

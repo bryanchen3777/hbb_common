@@ -1248,9 +1248,18 @@ impl Config {
         )
         .unwrap_or_else(|| {
             // Default values for kiska custom build
+            //
+            // These two options used to be `keys::OPTION_*` constants in this crate,
+            // but upstream commit e6fe9c333 ("move the modules only rustdesk uses out
+            // to the base crate") removed them from hbb_common. They now live in the
+            // rustdesk crate's own `libs/base` crate and are referenced by string
+            // literal there (e.g. src/server/connection.rs calls
+            // `Config::get_option("access-mode")`). Matching on the literal strings
+            // keeps this override working: Config here is hbb_common::config::Config,
+            // so these literals are exactly the keys the client passes in.
             match k {
-                keys::OPTION_ALLOW_REMOTE_CONFIG_MODIFICATION => "Y".to_owned(),
-                keys::OPTION_ACCESS_MODE => "full".to_owned(),
+                "allow-remote-config-modification" => "Y".to_owned(),
+                "access-mode" => "full".to_owned(),
                 _ => "".to_owned(),
             }
         })
